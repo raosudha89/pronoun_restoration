@@ -1,0 +1,1 @@
+java -mx300m -classpath /fs/clip-bolt/raosudha/stanford-postagger-full-2014-01-04/stanford-postagger.jar edu.stanford.nlp.tagger.maxent.MaxentTagger -model /fs/clip-bolt/raosudha/stanford-postagger-full-2014-01-04/models/chinese-distsim.tagger -textFile chat-P3-data-training-src.sgm.line.tok.train.declass > chat-P3-data-training-src.sgm.line.tok.train.declass.pos
