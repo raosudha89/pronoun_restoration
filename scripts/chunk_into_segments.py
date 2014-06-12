@@ -2,9 +2,14 @@ import sys
 import gzip
 
 def main(argv):
+	if len(argv) != 5:
+		print "usage: python chunk_into_segments.py sgm_file zh_file en_file zh_out en_out"
+		return
 	sgm_file = open(argv[0])
-	zh_file = gzip.open(argv[1])
-	en_file = gzip.open(argv[2])
+	#zh_file = gzip.open(argv[1])
+	#en_file = gzip.open(argv[2])
+	zh_file = open(argv[1])
+	en_file = open(argv[2])
 	zh_out = open(argv[3], 'w')
 	en_out = open(argv[4], 'w')
 	for sgm_line in sgm_file.readlines():

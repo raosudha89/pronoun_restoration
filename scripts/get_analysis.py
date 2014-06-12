@@ -4,15 +4,6 @@ import re
 from collections import defaultdict
 from optparse import OptionParser
 
-def get_pronoun_person_zh(pronoun):
-	pronoun = pronoun.strip(' \t\n\r')
-	if(pronoun == '我' or pronoun == '我们' or pronoun == '我 的'):
-		return '1'
-	elif(pronoun == '你' or pronoun == '你们' or pronoun == '你 的'):
-		return '2'
-	else:
-		return '3'
-
 def get_pronoun_label(line):
 	f_pronouns = ['i', 'my', 'me', 'we', 'us','our']
 	s_pronouns = ['you', 'your']
@@ -28,9 +19,12 @@ def get_pronoun_label(line):
 		s_positions += [m.span()[0] for m in re.finditer('^' + pro + ' ', line)] +  [m.span()[0] for m in re.finditer(' ' + pro + ' ', line)] + [m.span()[0] for m in re.finditer(' ' + pro + '$', line)]
 	if f_count == 0 and s_count == 0:
 		return ('none', 0, 0)
+	if f_count != 0 and s_count != 0:
+		print "mixed"
 	if(f_count == s_count):
 		f_min = min(f_positions)
 		s_min = min(s_positions)
+		print f_min, s_min
 		starts_with = '1v' if f_min < s_min else '2v'
 		return (starts_with, f_count, s_count)
 	elif(f_count > s_count):
@@ -86,9 +80,10 @@ def get_hidden_label(last_label):
 		return '1h'
 	return 'none'
 		
-def extract_features(en, zh, zh_pos, options):
+def extract_labels(en, zh):
 	last_label_en = 'none'
 	last_label_zh = 'none'
+	labels = ""
 	for en_line in en.readlines():
 		en_line = en_line.strip("\n")
 		zh_line = zh.readline()
@@ -98,87 +93,39 @@ def extract_features(en, zh, zh_pos, options):
 		if "</DOC>" in en_line:
 			last_label_en = 'none'
 			last_label_zh = 'none'
-			print
+			#print labels
+			labels = ""
 			continue
-		zh_pos_line = zh_pos.readline()
-		zh_pos_line = zh_pos_line.strip("\n")
 		label_en, f_count_en, s_count_en = get_pronoun_label(en_line)
 		label_zh, f_count_zh, s_count_zh, f_zh, s_zh = get_pronoun_label_zh(zh_line)
+		print
+		print en_line, label_en
+		if label_zh == '1v' or label_zh == '2v':
+			if label_zh != label_en:
+				print "zh: %s en: %s" % (label_zh, label_en)
 		if label_en == 'none':
 			label_en = get_hidden_label(last_label_en)
 		if label_zh == 'none':
 			label_zh = get_hidden_label(last_label_zh)
-		zh_line = zh_line.replace("|", " ").replace(":", " ") 
-		zh_pos_line = zh_pos_line.replace("|", " ").replace(":", " ") 
-		word_tag_list = zh_pos_line.split()
-		tags = ""
-		verbs = ""
-		pronouns = ""
-		for word_tag in word_tag_list:
-			if(len(word_tag.split("#")) != 2):
-				continue
-			word = word_tag.split("#")[0].strip(' \t\n\r') + " "
-			tag = word_tag.split("#")[1].strip(' \t\n\r') + " "
-			if(tag.strip(' \t\n\r') == "PN"):
-				tag = tag.strip(' \t\n\r')+ "_" + get_pronoun_person_zh(word) + " "
-			tags += tag
-			if(tag.strip(' \t\n\r') == "VV"):
-				 verbs += word + " "
-			if(get_pronoun_person_zh(word) == '1' or get_pronoun_person_zh(word) == '2'):
-				  pronouns += word + " "
-		feature_set = ""
-		if(options.bow):
-			feature_set += "|w <s> %s </s>" % (zh_line)
-		if(options.f_count):
-			feature_set += "|f %s " % (f_count_zh)
-		if(options.s_count):
-			feature_set += "|s %s " % (s_count_zh)
-		if(options.zh_label):
-			feature_set += "|l %s " % (to_searn_label(label_zh))
-		if(options.pos_tags):
-			feature_set += "|t <s> %s</s>" % (tags.strip("\n"))
-		if(options.verbs):
-			feature_set += "|v <s> %s</s>" % (verbs)
-		if(options.pronouns):
-			feature_set += "|p <s> %s</s>" % (pronouns)
-		print "%s " % (to_searn_label(label_en)) + feature_set
+		labels += to_searn_label(label_en) + " "
 		last_label_en = label_en
 		last_label_zh = label_zh
 
 def main(argv):
 	if len(argv) < 4:
-		print "usage: python to_vw_input_format.py --en-file <file> --zh-file <file> --zh-pos-file <file> --bow --f-count --s-count --zh-label --pos-tags --verbs --pronouns"
+		print "usage: python get_analysis.py --en-file <file> --zh-file <file>"
 		return
 	parser = OptionParser()
 	parser.add_option("--en-file", dest="en_file", action="store",
 				  help="write report to FILE", metavar="FILE")
 	parser.add_option("--zh-file", dest="zh_file", action="store",
 				  help="write report to FILE", metavar="FILE")
-	parser.add_option("--zh-pos-file", dest="zh_pos_file", action="store",
-				  help="write report to FILE", metavar="FILE")
-	parser.add_option("--bow",
-				  action="store_true", dest="bow", default=False)
-	parser.add_option("--f-count",
-				  action="store_true", dest="f_count", default=False)
-	parser.add_option("--s-count",
-				  action="store_true", dest="s_count", default=False)
-	parser.add_option("--zh-label",
-				  action="store_true", dest="zh_label", default=False)
-	parser.add_option("--pos-tags",
-				  action="store_true", dest="pos_tags", default=False)
-	parser.add_option("--verbs",
-				  action="store_true", dest="verbs", default=False)
-	parser.add_option("--pronouns",
-				  action="store_true", dest="pronouns", default=False)
 	(options, args) = parser.parse_args()
 	en = open(options.en_file)
 	zh = open(options.zh_file)
-	zh_pos = open(options.zh_pos_file)
-	extract_features(en, zh, zh_pos,options)
+	extract_labels(en, zh)
 	en.close()
 	zh.close()
-	zh_pos.close()
-	
 
 if __name__ == "__main__":
 	main(sys.argv[1:])
